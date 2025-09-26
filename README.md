@@ -54,3 +54,48 @@ UWP App の開発
     System.Diagnostics.Debug.WriteLine("WebView2に画像を送信しました。");
    ```
 3. JavaScript 内で適切なエンドポイントを呼び出して API を叩けばサーバー上でのスキャンデータ等の処理をサーバーに渡すことが可能
+
+### 印刷との連携
+UWP では Ctrl + P を押したときのようなプリント設定用の UI を開く API があるためそれを利用する。  
+```
+// UWPの標準印刷UIを表示します。
+// このメソッドが呼び出されると、PrintManagerのPrintTaskRequestedイベントが発生します。
+await PrintManager.ShowPrintUIAsync();
+```
+
+利用可能なプリンターは Windows システムのプリンタと同じ。  
+プレビュー画像のカスタマイズ等が可能（逆にプレビュー画像を表示するにはアプリから画像を受け渡さないといけない）  
+
+印刷用の画像はスキャンと同様に JavaScript を介して WebView2 から取得可能  
+例えば以下のように Webアプリ側で印刷用の画像を特定の id 要素の src に base64 形式で入れておき、Print 実行時に src から取得すれば良い。
+
+```
+// WebView内の 'ps-image-preview' というidを持つimg要素のsrc属性を取得するJavaScript
+string script = "document.getElementById('ps-image-preview').src;";
+
+// JavaScriptを実行し、結果（データURI文字列）を取得
+string dataUriString = await MyWebView.CoreWebView2.ExecuteScriptAsync(script);
+```
+
+## サイドローディングでのアプリの配布
+アプリの配布方法は MS Store 経由とサイドローディング（開発・テスト用）の2種類  
+サイドローディングの場合は自己証明書を作成し、ユーザー側で証明書を「信頼された機関」の証明書としてルートにインポートする必要がある
+
+### パッケージ化の流れ
+1. ソリューションを右クリック > パッケージ化して公開する > アプリ パッケージの作成
+2. サイドローディングを選択
+3. 証明書を作成（最初のみ）
+4. アーキテクチャ選択
+5. インストーラの保存場所作成
+→ AppPackages フォルダに作成される。     証明書のインポート後 `XXXX_x.x.x.x_x64_Test` のようなフォルダ内にある `.msix` をダブルクリックして起動できる
+
+### 証明書のインポート
+[この手順](https://learn.microsoft.com/ja-jp/windows/application-management/sideload-apps-in-windows#step-2-import-the-security-certificate) を参照
+
+
+## 参考
+- [WinUI 2 (UWP) アプリでの WebView2 の概要](https://learn.microsoft.com/ja-jp/microsoft-edge/webview2/get-started/winui2)
+- [アプリからスキャンする](https://learn.microsoft.com/ja-jp/windows/apps/develop/devices-sensors/scan-from-your-app)
+- [アプリからの印刷 (MS Learn)](https://learn.microsoft.com/ja-jp/windows/apps/develop/devices-sensors/print-from-your-app)
+- [印刷プレビューUIのカスタマイズ](https://learn.microsoft.com/ja-jp/windows/apps/develop/devices-sensors/customize-the-print-preview-ui)
+- [UWPのパッケージ化](https://learn.microsoft.com/ja-jp/windows/msix/package/packaging-uwp-apps#generate-an-app-package)
