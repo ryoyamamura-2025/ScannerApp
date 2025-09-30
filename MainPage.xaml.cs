@@ -183,32 +183,60 @@ namespace ScannerApp
 
                 ScannerStatusTextBlock.Text = "スキャンを実行中... スキャナードライバの画面が表示される場合があります。";
 
-                // 4. スキャンを実行し、ファイルをフォルダに保存
-                var result = await scanner.ScanFilesToFolderAsync(ImageScannerScanSource.Default, tempFolder);
-
-                // 5. スキャン結果を確認し、画像を表示
-                if (result.ScannedFiles.Count > 0)
+                // 4. スキャンを実行し、メモリに上のストリームに書き込む
+                using (var stream = new InMemoryRandomAccessStream())
                 {
-                    StorageFile scannedFile = result.ScannedFiles[0]; // 最初のファイルを取得
+                    // ScanFilesToFolderAsync の代わりに ScanPreviewToStreamAsync を使用
+                    // Flatbed（平らなガラス面）を指定
+                    await scanner.ScanPreviewToStreamAsync(ImageScannerScanSource.Flatbed, stream);
 
-                    // ファイルを読み込んでBitmapImageに変換
+                    // ストリームからBitmapImageを作成してプレビュー表示
+                    stream.Seek(0); // ストリームの読み取り位置を先頭に戻す
                     var bitmapImage = new BitmapImage();
-                    using (var stream = await scannedFile.OpenAsync(FileAccessMode.Read))
+                    await bitmapImage.SetSourceAsync(stream);
+                    ScannedImage.Source = bitmapImage;
+
+                    // ストリームの内容をファイルに保存
+                    StorageFile scannedFile = await tempFolder.CreateFileAsync("scanned_image.jpg", CreationCollisionOption.GenerateUniqueName);
+
+                    stream.Seek(0); // 再度、読み取り位置を先頭に戻す
+                    using (var fileStream = await scannedFile.OpenAsync(FileAccessMode.ReadWrite))
                     {
-                        await bitmapImage.SetSourceAsync(stream);
+                        await RandomAccessStream.CopyAsync(stream, fileStream);
                     }
 
-                    // Imageコントロールに画像を表示
-                    ScannedImage.Source = bitmapImage;
                     ScannerStatusTextBlock.Text = $"スキャンが完了しました: {scannedFile.Name}";
 
-                    // WebView2に画像を送信
-                    await SendImageToWebViewAsync(scannedFile);
+                   // WebView2に画像を送信
+                   await SendImageToWebViewAsync(scannedFile);
                 }
-                else
-                {
-                    ScannerStatusTextBlock.Text = "スキャンは実行されましたが、画像ファイルは作成されませんでした。";
-                }
+
+                //// 4. スキャンを実行し、ファイルをフォルダに保存
+                //var result = await scanner.ScanFilesToFolderAsync(ImageScannerScanSource.Default, tempFolder);
+
+            //    // 5. スキャン結果を確認し、画像を表示
+            //    if (result.ScannedFiles.Count > 0)
+            //{
+            //    StorageFile scannedFile = result.ScannedFiles[0]; // 最初のファイルを取得
+
+            //    // ファイルを読み込んでBitmapImageに変換
+            //    var bitmapImage = new BitmapImage();
+            //    using (var stream = await scannedFile.OpenAsync(FileAccessMode.Read))
+            //    {
+            //        await bitmapImage.SetSourceAsync(stream);
+            //    }
+
+            //    // Imageコントロールに画像を表示
+            //    ScannedImage.Source = bitmapImage;
+            //    ScannerStatusTextBlock.Text = $"スキャンが完了しました: {scannedFile.Name}";
+
+            //    // WebView2に画像を送信
+            //    await SendImageToWebViewAsync(scannedFile);
+            //}
+            //else
+            //{
+            //    ScannerStatusTextBlock.Text = "スキャンは実行されましたが、画像ファイルは作成されませんでした。";
+            //}
             }
             catch (Exception ex)
             {
